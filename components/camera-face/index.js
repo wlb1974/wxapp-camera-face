@@ -29,7 +29,7 @@ Component({
     // 录制视频时长,不能超过30s
     duration: {
       type: Number,
-      value: 3000
+      value: 60000
     },
     // 是否压缩视频
     compressed: {
@@ -99,7 +99,7 @@ Component({
     // 准备录制
     async readyRecord() {
       if (this.data.isReading) return
-      this.setData({ isReading: true })
+      this.setData({ isReading: true , isRecoding:false , isCompleteRecoding: false, isStopRecoding: false})
       wx.showLoading({ title: '加载中..', mask: true })
       // 检测版本号
       const canUse = checkVersion('2.18.0', () => {
@@ -185,16 +185,18 @@ Component({
     // 开始录制
     startRecord() {
       console.log('开始录制')
+      this.setData({ isCompleteRecoding: false })
       this.ctx.startRecord({
+        timeout: 200 ,    // 最长测试时间200S以内
         success: (res) => {
           this.setRecordingTips();
           this.timer = setTimeout(() => {
             this.completeRecord()
-          }, this.properties.duration)
+          }, this.properties.duration + 500) // 额外增加500ms
         },
         timeoutCallback: (res) => {
           // 超过30s或页面 onHide 时会结束录像
-          this.stop();
+          this.completeRecord()
         },
         fail: () => this.stop()
       })
@@ -216,19 +218,24 @@ Component({
     completeRecord() {
       console.log('完成录制');
       this.setData({ isCompleteRecoding: true })
+      wx.stopFaceDetect();
+
       this.ctx.stopRecord({
         compressed: this.properties.compressed,
         success: (res) => {
           this.setData({ bottomTips: tips.complete })
-          // 向外触发完成录制的事件
-          this.triggerEvent('complete', res.tempVideoPath)
+          setTimeout( () => {
+            this.setData({ bottomTips: '' })
+          } , 5000)
         },
         fail: () => this.stop(),
-        complete: () => {
+        complete: (res) => {
           this.listener.stop();
-          wx.stopFaceDetect();
           clearInterval(this.interval);
-          this.setData({ isCompleteRecoding: false })
+          // this.setData({ isCompleteRecoding: false })
+          // 向外触发完成录制的事件
+          console.log('sendEvent: complete')
+          this.triggerEvent('complete', res.tempVideoPath)
         }
       })
     },

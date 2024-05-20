@@ -1,3 +1,7 @@
+import { checkUserToken, getAliKey, getUserInfo, getUserToken, insertTask, updateUserInfo, uploadVideoFile, writeVideoData } from "../../components/qdscitech/api"
+
+
+
 // pages/page2/index.js
 Page({
 
@@ -11,11 +15,25 @@ Page({
   onShow() {
     console.log('页面显示')
     this.setData({ isBack: true })
+    if(!checkUserToken()) {
+      getUserToken(this.data.userCode, (res) => {
+        console.log('getUserToken success! ' + JSON.stringify(res))
+        this.data.userId = res.data.data.user_id
+
+      }, (res) => {
+        console.log('getUserToken failed! ' + JSON.stringify(res))
+      })
+    }
+    else {
+      console.log("userToken existed! ")
+    }    
   },
 
   data: {
     videoSrc: '', // 录制的视频临时路径
-    isBack: false // 是否返回上一页,用于页面隐藏时判断
+    isBack: false , // 是否返回上一页,用于页面隐藏时判断
+    userId : 'wx000001',
+    userCode : 'wx000001'
   },
 
   // 当取消授权或者打开设置授权
@@ -37,7 +55,8 @@ Page({
   handleComplete(e) {
     console.log('视频文件路径:', e.detail)
     // e.detail: 视频临时路径
-    this.setData({ videoSrc: e.detail, isBack: false })
+    // this.setData({ videoSrc: e.detail, isBack: false })
+
 
     // 打印视频信息文件
     wx.getFileInfo({
@@ -51,6 +70,34 @@ Page({
       }
     })
 
+    wx.saveVideoToPhotosAlbum({
+      filePath: e.detail,
+    })
+
+    getUserInfo(
+       (res) => {
+        var result = res.data
+        console.log('result=' + JSON.stringify(result))
+        if(result.code == 1) {
+          this.uploadVideoFileToOSS(this.data.userId, e.detail)
+        }
+        else if(result.code == 101 || result.code == 102) {
+          updateUserInfo(this.data.userCode, '女', '测试', 20,  (res) => {
+            var result = res.data 
+            console.log('result=' + JSON.stringify(result))
+            this.uploadVideoFileToOSS(this.data.userId, e.detail)
+          }, (res) => {
+            console.log('updateUserInfo onFailed ' + JSON.stringify(res))
+          })
+        }
+        else {
+          console.log("getUserInfo: error " + JSON.stringify(result))
+        }
+      } ,
+      () => {
+        console.log("getUserInfo failed! ")
+      }
+    )  
     // 上传文件, 实际业务中为人脸识别活体检测接口
     // wx.showLoading({ title: '上传中..', mask: true })
     // wx.uploadFile({
@@ -62,5 +109,42 @@ Page({
     //     wx.hideLoading()
     //   }
     // })
+  },
+
+
+  uploadVideoFileToOSS (userId, file)  {
+    getAliKey( (res) => {
+      var result = res.data 
+      console.log('result=' + JSON.stringify(result))
+      if(result.code != 1) {
+        console.log('getAliKey error: ' + result.msg)
+        return 
+      }
+      var sts = result.data 
+      uploadVideoFile(sts, file,  (res) => {
+        console.log('uploadVideoFile success: res=' + JSON.stringify(res))
+        if (res.statusCode != 200) {
+          console.log('uploadVideoFile failed : ' + res.errMsg) 
+          return 
+        }
+        // insertTask(sts.open_token, sts.video_id, (res) => {
+        //   var result = res.data 
+        //   console.log('insertTask result=' + JSON.stringify(result))
+        //   writeVideoData(userId, sts.video_id, result.task_id, (res) => {
+        //     var result = res.data 
+        //     console.log('writeVideoData result=' + JSON.stringify(result))
+        //   }, (res) => {
+        //     console.log('writeVideoData failed result=' + JSON.stringify(res))
+        //   })
+        // },
+        // () => {
+        //   console.log("insertTask failed sts=" + sts)
+        // })
+      }, (res) => {
+        console.log('uploadVideoFile failed: res=' + JSON.stringify(res))
+      })
+    }, (res) => {
+      console.log('onFailed: ' + JSON.stringify(res))
+    })
   }
 })
