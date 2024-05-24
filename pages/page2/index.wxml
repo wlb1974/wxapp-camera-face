@@ -3,6 +3,6 @@
   <camera-face id="cameraFace" bind:noAuth="handleNoAuth" bind:complete="handleComplete"
     bind:cannotUse="handleCannotuse" />
 
-  <view class="preview-tips">预览视频</view>
-  <video wx:if="{{videoSrc}}" class="video" src="{{videoSrc}}"></video>
+  <!-- <view class="preview-tips">预览视频</view>
+  <video wx:if="{{videoSrc}}" class="video" src="{{videoSrc}}"></video> -->
 </view>

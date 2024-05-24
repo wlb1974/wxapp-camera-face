@@ -1,0 +1,18 @@
+<view class="container page" data-weui-theme="{{theme}}" bind:customerupdateanchor="onCustomerUpdateAnchor" >
+
+<canvas type="webgl" id="webgl" style="width: {{width}}px; height: {{height}}px;" bindtouchend="onTouchEnd" >
+    </canvas>
+
+  <view class="page-body-text tc" style="height:20%">
+    <view class="bottom-view">
+        <view wx:if="{{!bottomTips}}" class="bottom-btn" bindtap="readyRecord">准备录制人脸</view>
+        <view wx:else class="bottom-tips">{{bottomTips}}</view>
+    </view>
+    <view wx:if="{{cameraPosition == 0}}">
+        <button type="primary" bindtap="switchCamera" data-value="1" disabled="{{buttonDisable}}">切换为前置摄像头</button>
+    </view>
+    <view wx:else>
+        <button type="primary" bindtap="switchCamera" data-value="0" disabled="{{buttonDisable}}">切换为后置摄像头</button>
+    </view>
+  </view>
+</view>

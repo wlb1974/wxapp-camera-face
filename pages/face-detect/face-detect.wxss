@@ -1,4 +1,4 @@
-/* components/camera-face/index.wxss */
+
 .page-body {
   width: 100%;
   height: 100%;
@@ -7,8 +7,8 @@
 
 .camera-box {
   width: 750rpx;
-  /* height: 505rpx; */
-  margin-top: 50rpx;
+  height: 505rpx;
+  margin-top: 100rpx;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -17,15 +17,28 @@
 }
 
 .camera {
-  width: 100%;
-  height: 100%;
+  width: 750rpx;
+  height: 505rpx;
   z-index: 1;
+  position: absolute;
+  top: 0;
+  left: 0;
   /* border-radius: 50%; */
 }
 
+.canvas-view {
+  width: 750rpx;
+  height: 505rpx;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 999;
+  opacity: 0.5;
+}
+
 .img-view {
-  width: 100%;
-  height: 100%;
+  width: 750rpx;
+  height: 505rpx;
   position: absolute;
   top: 0;
   left: 0;
@@ -33,8 +46,8 @@
   opacity: 0.5;
 }
 .mask-img {
-  width: 100%;
-  height: 100%;
+  width: 750rpx;
+  height: 505rpx;
   
 }
 

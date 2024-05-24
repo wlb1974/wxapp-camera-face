@@ -69,6 +69,14 @@ Component({
     hide: function() {
       this.stop()
     },
+
+    show: function() {
+      const info = wx.getSystemInfoSync()
+      const pixelRatio = info.pixelRatio
+      const rpxHeight = info.windowHeight * 750 / info.windowWidth 
+      this.setData({cameraHeight : (rpxHeight - 400)})
+      console.log("width: " + info.windowWidth + "  height:" + info.windowHeight + " pixelRatio:" + pixelRatio + "  rpxHeight=" + rpxHeight)
+    }
   },
   detached: function() {
     // 在组件实例被从页面节点树移除时执行
@@ -81,8 +89,10 @@ Component({
     isRecoding: false, // 是否正在录制中
     isStopRecoding: false, // 是否正在停止录制中
     bottomTips: '', // 底部提示文字
+    cameraHeight:505
   },
 
+  vksession : null ,
   /**
    * 组件的方法列表
    */
@@ -93,6 +103,11 @@ Component({
       const result = await this.initAuthorize();
       if (!result) return false;
       if (!this.ctx) this.ctx = wx.createCameraContext();
+      this.vksession = wx.createVKSession({
+        track: {
+          face: { mode: 1 } // mode: 1 - 使用摄像头；2 - 手动传入图像
+        }
+      })
       return true;
     },
 
@@ -122,36 +137,152 @@ Component({
       }
       console.log('准备录制')
       this.setData({ bottomTips: tips.ready })
-      // 视频帧回调节流函数
-      let fn = throttle((frame) => {
-        // 人脸识别
-        wx.faceDetect({
-          frameBuffer: frame.data,
-          width: frame.width,
-          height: frame.height,
-          enableConf: true,
-          enableAngle: true,
-          success: (res) => this.processFaceData(res),
-          fail: (err) => this.cancel()
-        })
-      }, this.properties.throttleFrequency);
 
-      // 初始化人脸识别
-      wx.initFaceDetect({
-        success: () => {
-          const listener = this.listener = this.ctx.onCameraFrame((frame) => fn(frame));
-          listener.start();
-        },
-        fail: (err) => {
-          console.log('初始人脸识别失败', err)
-          this.setData({ bottomTips: '' })
-          wx.showToast({ title: '初始人脸识别失败', icon: 'none' })
-        },
-        complete: () => {
-          wx.hideLoading()
-          this.setData({ isReading: false })
+      // 摄像头实时检测模式下，监测到人脸时，updateAnchors 事件会连续触发 （每帧触发一次）
+      this.vksession.on('updateAnchors', anchors => {
+        // console.log('updateAnchors : ' + JSON.stringify(anchors))
+        anchors.forEach(anchor => {
+          console.log('anchor.points', anchor.points)
+          console.log('anchor.origin', anchor.origin)
+          console.log('anchor.size', anchor.size)
+          console.log('anchor.angle', anchor.angle)
+        })
+        this.processVKSessionFaceData()
+      })
+      
+      // 当人脸从相机中离开时，会触发 removeAnchors 事件
+      this.vksession.on('removeAnchors', () => {
+        console.log('removeAnchors')
+        this.cancel()
+      })
+
+      console.log('vksession starting....')
+      // 需要调用一次 start 以启动
+      this.vksession.start(errno => {
+        console.log('vksession started errno=' + errno)
+        wx.hideLoading()
+        if (errno) {
+          // 如果失败，将返回 errno
+        } else {
+          // 否则，返回null，表示成功
+          //限制调用帧率
+          let fps = 10
+          let fpsInterval = 1000 / fps
+          let last = Date.now()
+          var cameraWidth, cameraHeight;
+          var selectorQuery = wx.createSelectorQuery();
+          
+          selectorQuery.select('#myCamera').fields({
+            width: true,
+            height: true
+          }).exec(function(rect){
+            // rect.id      : 返回节点的ID
+            // rect.dataset : 返回节点的dataset
+            // rect.left    : 节点的左边界坐标
+            // rect.right   : 节点的右边界坐标
+            // rect.top     : 节点的上边界坐标
+            // rect.bottom  : 节点的下边界坐标
+            // rect.width   : 节点的宽度
+            // rect.height  : 节点的高度
+            cameraWidth = rect.width;
+            cameraHeight = rect.height;
+          });
+
+        console.log('camera : width=' + cameraWidth + )
+        let fn = throttle((frame) => {
+          let now = Date.now() 
+          const mill = now - last
+          console.log('onFrame .....')
+          // 经过了足够的时间
+          if (mill > fpsInterval) {
+              last = now - (mill % fpsInterval); //校正当前时间
+              console.log('onFrame .....')
+              this.vksession.getVKFrame(cameraWidth, cameraHeight)
+          }
+        },this.properties.throttleFrequency)
+        const listener = this.listener = this.ctx.onCameraFrame((frame) => fn(frame));
+        listener.start();
+          // 逐帧渲染
+          // const onFrame = timestamp => {
+          //     let now = Date.now() 
+          //     const mill = now - last
+          //     console.log('onFrame .....')
+          //     // 经过了足够的时间
+          //     if (mill > fpsInterval) {
+          //         last = now - (mill % fpsInterval); //校正当前时间
+          //         console.log('onFrame .....')
+          //         this.vksession.getVKFrame(cameraWidth, cameraHeight)
+          //     }
+          //     this.vksession.requestAnimationFrame(onFrame)
+          // }
+          // console.log('start requestAnimationFrame')
+          // this.vksession.requestAnimationFrame(onFrame)          
         }
       })
+
+      // 视频帧回调节流函数
+      // let fn = throttle((frame) => {
+      //   // 人脸识别
+      //   wx.faceDetect({
+      //     frameBuffer: frame.data,
+      //     width: frame.width,
+      //     height: frame.height,
+      //     enableConf: true,
+      //     enableAngle: true,
+      //     success: (res) => this.processFaceData(res),
+      //     fail: (err) => this.cancel()
+      //   })
+      // }, this.properties.throttleFrequency);
+
+      // // 初始化人脸识别
+      // wx.initFaceDetect({
+      //   success: () => {
+      //     const listener = this.listener = this.ctx.onCameraFrame((frame) => fn(frame));
+      //     listener.start();
+      //   },
+      //   fail: (err) => {
+      //     console.log('初始人脸识别失败', err)
+      //     this.setData({ bottomTips: '' })
+      //     wx.showToast({ title: '初始人脸识别失败', icon: 'none' })
+      //   },
+      //   complete: () => {
+      //     wx.hideLoading()
+      //     this.setData({ isReading: false })
+      //   }
+      // })
+    },
+
+    // 处理人脸识别数据
+    processVKSessionFaceData() {
+      console.log('人脸可信,且是正脸');
+      if (this.data.isRecoding || this.data.isCompleteRecoding) return
+      this.setData({ isRecoding: true });
+      this.startRecord(); // 开始录制
+      
+      // const { global } = res.confArray;
+
+      //   const g = this.properties.faceCredibility;
+      //   const { pitch, yaw, roll } = res.angleArray;
+      //   const { p, y, r } = this.properties.faceAngle;
+      //   console.log('res.confArray.global:', global)
+      //   console.log('res.angleArray:',  pitch, yaw, roll)
+      //   const isGlobal = global >= g;
+      //   const isPitch = Math.abs(pitch) <= p;
+      //   const isYaw = Math.abs(yaw) <= y;
+      //   const isRoll = Math.abs(roll) <= r;
+      //   if( isGlobal && isPitch && isYaw && isRoll ){
+      //     console.log('人脸可信,且是正脸');
+      //     if (this.data.isRecoding || this.data.isCompleteRecoding) return
+      //     this.setData({ isRecoding: true });
+      //     this.startRecord(); // 开始录制
+      //   }else {
+      //     console.log('人脸不可信,或者不是正脸');
+      //     this.cancel()
+      //   }
+      // }else {
+      //   console.log('获取人脸识别数据失败', res);
+      //   this.cancel()
+      // }
     },
 
     // 处理人脸识别数据

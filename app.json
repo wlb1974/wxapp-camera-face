@@ -1,12 +1,13 @@
 {
   "pages": [
-    "pages/page2/index",
-    "pages/page1/index"
+    "pages/page1/index",
+    "pages/face-detect/face-detect",
+    "pages/page2/index"
   ],
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#F8F8F8",
-    "navigationBarTitleText": "camera",
+    "navigationBarTitleText": "微心",
     "navigationBarTextStyle": "black"
   },
   "sitemapLocation": "sitemap.json"

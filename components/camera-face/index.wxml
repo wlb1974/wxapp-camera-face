@@ -1,8 +1,8 @@
 <!--components/camera-face/index.wxml-->
 <!--人脸识别录像组件-->
-<view class="page-body">
-    <view class="camera-box">
-        <camera
+<view class="page-body" >
+    <view class="camera-box" style="height: {{cameraHeight}}rpx">
+        <camera id="myCamera"
             mode="normal"
             device-position="{{devicePosition}}"
             frame-size="{{frameSize}}"
